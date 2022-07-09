@@ -1,0 +1,13 @@
+[Unit]
+Description=LSWS CONFIG CPANEL CONVERTER
+After=network.target
+
+[Service]
+Type=simple
+User=root
+RemainAfterExit=yes
+ExecStart=/usr/local/lsws/configparse/service.sh
+TimeoutStartSec=0
+
+[Install]
+WantedBy=default.target
