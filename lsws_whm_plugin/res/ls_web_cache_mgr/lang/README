@@ -1,0 +1,8 @@
+Welcome to the LiteSpeed Web Cache Manager user-end cPanel Plugin's 'lang'
+directory.
+
+This directory will contain all translations provided by LiteSpeed as well as a
+'cust' directory that can be used to provide your own custom translations.
+
+For more information on implementing custom translations, please see the
+README file contained in the 'cust' direcotry.

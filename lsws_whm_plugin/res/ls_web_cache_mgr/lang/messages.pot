@@ -1,0 +1,260 @@
+# copyright (c) 2019-2020
+# This file is distributed under the same license as the ls_web_cache_mgr package.
+msgid ""
+msgstr ""
+"Project-Id-Version: ???\n"
+"Report-Msgid-Bugs-To: support@litespeedtech.com\n"
+"POT-Creation-Date: 2020-08-06 17:23-0400\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Please select at least one checkbox."
+msgstr ""
+
+msgid "Invalid input value detected - No Action Taken"
+msgstr ""
+
+msgid ""
+"DocRoot could not be found and has been removed from EC Certificate Manger "
+"list."
+msgstr ""
+
+msgid "Successfully generated a new EC certificate."
+msgstr ""
+
+msgid "EC certificate already exists, no need to generate."
+msgstr ""
+
+msgid "Failed to generate a new EC certificate."
+msgstr ""
+
+msgid "Successfully removed EC certificate."
+msgstr ""
+
+msgid "Domain not found."
+msgstr ""
+
+msgid "No EC certificate found."
+msgstr ""
+
+msgid "Failed to remove EC certificate."
+msgstr ""
+
+msgid "Domain has no SSL VHost. Skipped."
+msgstr ""
+
+msgid "Invalid Entrance"
+msgstr ""
+
+msgid "Virutual Host Cache Root Not Set."
+msgstr ""
+
+msgid "LiteSpeed Web Server notified to restart detached PHP processes."
+msgstr ""
+
+msgid ""
+"Could not notify LiteSpeed Web Server to restart detached PHP processes."
+msgstr ""
+
+#, php-format
+msgid "%s API call failed."
+msgstr ""
+
+#, php-format
+msgid ""
+"Encountered issue when attempting to communicate with %s. Please visit %s in "
+"the WordPress Dashboard and register/refresh this site's domain key."
+msgstr ""
+
+#, php-format
+msgid ""
+"Unable to get required information from %s for this domain. Please enable "
+"the %s CDN feature for this domain and try again."
+msgstr ""
+
+#, php-format
+msgid "%s API call encountered an error."
+msgstr ""
+
+#, php-format
+msgid "%s API call returned unrecognized %s value."
+msgstr ""
+
+#, php-format
+msgid "%s API call did not return expected data."
+msgstr ""
+
+msgid "Successfully uploaded SSL Cert info."
+msgstr ""
+
+msgid "Successfully saved user settings."
+msgstr ""
+
+msgid "Could not set Log File Level"
+msgstr ""
+
+msgid "Error establishing a database connection."
+msgstr ""
+
+msgid "See ls_webcachemgr.log for more information."
+msgstr ""
+
+#, php-format
+msgid "Could Not Find Cache Directory %s"
+msgstr ""
+
+msgid "Cache Files Successfully Flushed"
+msgstr ""
+
+msgid "No Cache Files To Flush"
+msgstr ""
+
+msgid ""
+"Installation could not be found and has been removed from Cache Manager list."
+msgstr ""
+
+#, php-format
+msgid "Could not find matching document root for WP siteurl/servername %s."
+msgstr ""
+
+msgid "Flag file set"
+msgstr ""
+
+msgid "Could not create flag file"
+msgstr ""
+
+msgid "Flag file unset"
+msgstr ""
+
+msgid ""
+"Install skipped due to Error status. Please Refresh Status before trying "
+"again."
+msgstr ""
+
+msgid ""
+"Installation could not be found during Scan and has been removed from the "
+"Cache Manager list."
+msgstr ""
+
+#, php-format
+msgid ""
+"LiteSpeed Cache Plugin for WordPress must be installed and enabled before "
+"attempting to upload SSL certificate to %s."
+msgstr ""
+
+msgid "Unable to get certificate/private key information for this domain."
+msgstr ""
+
+#, php-format
+msgid ""
+"Unable to retrieve %s API key. Please visit %s in the WordPress Dashboard "
+"and confirm that the API key has already been generated."
+msgstr ""
+
+#, php-format
+msgid ""
+"Detected SSL certificate does not contain all %s configured domain and alias "
+"entries for this site."
+msgstr ""
+
+msgid "Start by clicking \"Update List\" to populate the list."
+msgstr ""
+
+msgid ""
+"To further improve EC Management features in this version, current list must "
+"be updated. Please \"Update List\" now."
+msgstr ""
+
+msgid "List data could not be read. Please \"Update List\"."
+msgstr ""
+
+msgid "Scan"
+msgstr ""
+
+msgid ""
+"Start by clicking Scan. This will discover all active WordPress "
+"installations and add them to the list below."
+msgstr ""
+
+msgid ""
+"To further improve Cache Management features in this version, current "
+"installations must be re-discovered. Please perform a Scan now."
+msgstr ""
+
+msgid "Re-scan"
+msgstr ""
+
+msgid "Scan data could not be read. Please perform a Re-scan."
+msgstr ""
+
+msgid "Disabled"
+msgstr ""
+
+msgid "Enable"
+msgstr ""
+
+#, php-format
+msgid "Enable cache for %s"
+msgstr ""
+
+msgid "Enabled"
+msgstr ""
+
+msgid "Disable"
+msgstr ""
+
+#, php-format
+msgid "Disable & uninstall cache for %s"
+msgstr ""
+
+msgid ""
+"LSCache is enabled but not caching. Please visit the WordPress Dashboard for "
+"more information."
+msgstr ""
+
+msgid "Warning"
+msgstr ""
+
+msgid ""
+"WordPress fatal error encountered during action execution. This is most "
+"likely caused by custom code in this WordPress installation."
+msgstr ""
+
+msgid "Error establishing WordPress database connection."
+msgstr ""
+
+msgid "Could not retrieve WordPress siteURL."
+msgstr ""
+
+msgid "Could not match WordPress siteURL to a known cPanel docroot."
+msgstr ""
+
+msgid "Could not find a valid wp-config.php file."
+msgstr ""
+
+msgid "Click for more information."
+msgstr ""
+
+msgid "Error"
+msgstr ""
+
+msgid "Flag"
+msgstr ""
+
+#, php-format
+msgid "Set flag for %s"
+msgstr ""
+
+msgid "Flagged as excluded from WHM Mass Enable/Disable"
+msgstr ""
+
+msgid "Unflag"
+msgstr ""
+
+#, php-format
+msgid "Unset flag for %s"
+msgstr ""

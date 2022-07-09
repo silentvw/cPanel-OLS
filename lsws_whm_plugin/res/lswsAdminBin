@@ -1,0 +1,461 @@
+#!/usr/local/cpanel/3rdparty/bin/perl
+
+package Lsws::lswsAdminBin;
+
+use utf8;
+use strict;
+use Data::Dumper;
+use File::Path qw(make_path);
+use File::Touch;
+use Archive::Extract;
+use Cwd qw(abs_path);
+use IPC::Run;
+use JSON;
+
+#Note: not using "use IPC::Run qw(run);" to avoid conflict with
+# "__PACKAGE__->run()" line.
+
+
+#Make this module inherit from this "groundwork" admin module.
+#This eliminates a large swath of the boilerplate code that admin #modules used to require!
+use parent 'Cpanel::AdminBin::Script::Call';
+
+#Run the module as a script if (and only if) it is called that way.
+#This "modulino" approach helps to facilitate testing and code
+#reusability; for example, you could put some of this class's methods
+#into a base class, then have 2 or more admin modules inherit
+#from that base class.
+__PACKAGE__->run() if !caller;
+
+#This special function is a "whitelist" of actions that
+#a caller may call. Anything not listed here cannot be called.
+#
+#By convention, these functions are named
+#in ALLCAPS_SNAKE_CASE.
+sub _actions
+{
+    return qw(
+        EXEC_ISSUE_CMD
+        RETRIEVE_LSCWP_TRANSLATION
+        REMOVE_LSCWP_TRANSLATION_ZIP
+        REMOVE_NEW_LSCWP_FLAG_FILE
+        GET_DOMAIN_SSL_DATA
+        GENERATE_EC_CERT
+        REMOVE_EC_CERT
+        GET_UPDATED_EC_LIST
+    );
+}
+
+sub EXEC_ISSUE_CMD
+{
+    my ($self, $username, $cmd) = @_;
+
+    my @suCmd = _getSuCmdArr($username);
+
+    my @fullCmd = ();
+    push @fullCmd, @suCmd;
+    push @fullCmd, $cmd;
+
+    my $output = '';
+
+    IPC::Run::run \@fullCmd, \undef, \$output;
+
+    # Looking for UserCommand custom exit/return value here
+    my $retVar = $? >> 8;
+
+    chomp($output);
+
+    return ( retVar => $retVar, output => $output );
+}
+
+sub RETRIEVE_LSCWP_TRANSLATION
+{
+    my ($self, $locale, $pluginVer) = @_;
+
+    # Strip invalid chars from input
+    $locale =~ s/[^A-Za-z_]//g;
+    $pluginVer =~ s/[^0-9.]//g;
+
+    my $translationDir = '/usr/src/litespeed-wp-plugin/' . $pluginVer . '/translations';
+    my $zipFile = $locale . '.zip';
+    my $localZipFile = $translationDir . '/' . $zipFile;
+
+    if ( ! -d $translationDir ) {
+        make_path($translationDir, { chmod => 0755 });
+    }
+
+    touch($translationDir . '/' . '.ls_translation_check_' . $locale);
+
+    # downloads.wordpress.org looks to always return a '200 OK' status,
+    # even when serving a 404 page. As such invalid downloads can only be
+    # checked through user failure to unzip through WP func unzip_file()
+    # as we do not assume that root has the ability to unzip.
+    my $url = 'https://downloads.wordpress.org/translation/plugin/litespeed-cache/' . $pluginVer
+            . '/' . $locale . '.zip';
+
+    my @wget_command = (
+        "wget",
+        "-q",
+        "--tries=1",
+        "--no-check-certificate",
+        $url,
+        "-P",
+        $translationDir
+    );
+
+    system(@wget_command);
+
+    if ( $? == -1 || $? & 127 || ($? >> 8) != 0 ) {
+        return 0;
+    }
+
+    # WordPress user can unzip for us if this call fails.
+    my $m = Archive::Extract->new( archive => $localZipFile );
+    $m->extract( to => $translationDir );
+
+    return 1;
+}
+
+sub REMOVE_LSCWP_TRANSLATION_ZIP
+{
+    my ($self, $locale, $pluginVer) = @_;
+
+    # Strip invalid chars from input
+    $locale =~ s/[^A-Za-z_]//g;
+    $pluginVer =~ s/[^0-9.]//g;
+
+    my $dlDir = '/usr/src/litespeed-wp-plugin';
+
+    my $zipFile =
+            abs_path($dlDir . '/' . $pluginVer . '/translations/' . $locale . '.zip');
+
+    if ( substr($zipFile, 0, length $dlDir) eq $dlDir ) {
+        unlink $zipFile;
+    }
+}
+
+sub REMOVE_NEW_LSCWP_FLAG_FILE
+{
+    my ($self, $path) = @_;
+
+    my $flagFile = $path . '/.lscm_new_lscwp';
+
+    if ( -f $flagFile ) {
+        unlink $flagFile or return 0;
+    }
+
+    return 1;
+}
+
+sub _getPluginGeneratedEcCertData
+{
+    my ($combinedEcCertFile) = @_;
+
+    my $retCert = '';
+    my $retKey = '';
+
+    if ( -f $combinedEcCertFile ) {
+
+        if ( open(my $fh, '<:encoding(UTF-8)', $combinedEcCertFile) ) {
+            my $fileContent = do {local $/; <$fh> };
+            close($fh);
+
+            my ($key) = $fileContent =~ /(-+BEGIN EC PRIVATE KEY-+[\s\S]*-+END EC PRIVATE KEY-+)/;
+            my ($cert) = $fileContent =~ /(-+BEGIN CERTIFICATE-+[\s\S]*?-+END CERTIFICATE-+)/;
+
+            if ( $key ne "" && $cert ne "" ) {
+                $retKey = $key;
+                $retCert = $cert;
+            }
+        }
+    }
+
+    return ( retCert => $retCert, retKey => $retKey );
+}
+
+sub GET_DOMAIN_SSL_DATA
+{
+    my ($self, $username, $domain, $allowEcCertGen) = @_;
+
+    my $sslVhostDir = '/var/cpanel/ssl/apache_tls';
+    my $combinedEcCertFile = $sslVhostDir . '/' . $domain . '/combined.ecc';
+
+    my %res = _getPluginGeneratedEcCertData($combinedEcCertFile);
+
+    my $cert = $res{'retCert'};
+    my $key = $res{'retKey'};
+
+    if ( $cert ne "" && $key ne "" ) {
+        return ( retVar => 0, retCert => $cert, retKey => $key );
+    }
+
+    my @fullCmd = (
+        '/usr/local/cpanel/bin/whmapi1',
+        'fetch_vhost_ssl_components',
+        '--output=json'
+    );
+
+    my $output = '';
+
+    IPC::Run::run \@fullCmd, \undef, \$output;
+
+    my $retVar = $? >> 8;
+    my $dataRef = decode_json($output);
+    my %data = %$dataRef;
+
+    if ( $data{'data'} && $data{'data'}{'components'} ) {
+        my $componentsDataRef = $data{'data'}{'components'};
+        my @componentsData = @$componentsDataRef;
+
+        while ( my ($componentKey, $componentRef) = each @componentsData ) {
+            my %component = %$componentRef;
+
+            if ( $component{'servername'}
+                    && $component{'servername'} eq "$domain"
+                    && $component{'key'}
+                    && $component{'certificate'} ) {
+
+                $key = $component{'key'};
+                $cert = $component{'certificate'};
+
+                return ( retVar => $retVar, retCert => $cert, retKey => $key );
+            }
+        }
+    }
+
+    if ( $allowEcCertGen
+            && -f $sslVhostDir . '/' . $domain
+            && ! -f $sslVhostDir . '/.pending_delete/' . $domain
+            && ! -f $combinedEcCertFile ) {
+
+        GENERATE_EC_CERT($self, $username, $domain);
+
+        %res = _getPluginGeneratedEcCertData($combinedEcCertFile);
+
+        $cert = $res{'retCert'};
+        $key = $res{'retKey'};
+
+        if ( $cert ne "" && $key ne "" ) {
+            return ( retVar => 0, retCert => $cert, retKey => $key );
+        }
+    }
+
+    return ( retVar => 1, retCert => '', retKey => '' );
+}
+
+sub GENERATE_EC_CERT
+{
+    my ($self, $username, $domain) = @_;
+
+    my $paperLanternPluginDir = "/usr/local/cpanel/base/frontend/paper_lantern/ls_web_cache_manager";
+    my $jupiterPluginDir = "/usr/local/cpanel/base/frontend/jupiter/ls_web_cache_manager";
+    my $pluginDir;
+
+    if ( -d $jupiterPluginDir ) {
+        $pluginDir = $jupiterPluginDir;
+    }
+    else {
+        $pluginDir = $paperLanternPluginDir;
+    }
+
+    my @cmd = (
+        $pluginDir . "/scripts/cert_action_entry",
+        "geneccert",
+        "-user",
+        $username,
+        "-domain",
+        $domain
+    );
+
+    my $output = '';
+
+    IPC::Run::run \@cmd, \undef, \$output;
+
+    # Looking for UserCommand custom exit/return value here
+    my $retVar = $? >> 8;
+
+    chomp($output);
+
+    if ( $retVar == 0 ) {
+        my @cmd = (
+            "/usr/local/cpanel/bin/whmapi1",
+            "restartservice",
+            "service=httpd",
+            "queue_task=1"
+        );
+
+        my $output = '';
+
+        IPC::Run::run \@cmd, \undef, \$output;
+    }
+
+    my $infoRef = _getServerNameSslAndEcCertInfo($domain);
+    my %info = %$infoRef;
+
+    return (
+        retVar => $retVar,
+        output => $output,
+        sslVh => $info{'sslVh'},
+        ecCert => $info{'ecCert'},
+        ecCertFingerprint => $info{'ecCertFingerprint'}
+    );
+}
+
+sub REMOVE_EC_CERT
+{
+    my ($self, $username, $domain) = @_;
+
+    my $retVar;
+    my $output = '';
+
+    if ( ! -f "/var/cpanel/userdata/${username}/${domain}" ) {
+        $retVar = 100;
+    }
+    elsif ( ! -f "/var/cpanel/ssl/apache_tls/${domain}/combined.ecc" ) {
+        $retVar = 101;
+    }
+    else {
+        my @cmd = (
+            "/bin/rm",
+            "-f",
+            "/var/cpanel/ssl/apache_tls/${domain}/combined.ecc",
+        );
+
+        IPC::Run::run \@cmd, \undef, \$output;
+
+        # Looking for UserCommand custom exit/return value here
+        $retVar = $? >> 8;
+
+        chomp($output);
+    }
+
+    my $infoRef = _getServerNameSslAndEcCertInfo($domain);
+    my %info = %$infoRef;
+
+    return (
+        retVar => $retVar,
+        output => $output,
+        sslVh => $info{'sslVh'},
+        ecCert => $info{'ecCert'},
+        ecCertFingerprint => $info{'ecCertFingerprint'}
+    );
+}
+
+sub GET_UPDATED_EC_LIST
+{
+    my ($self, $user) = @_;
+
+    my $output = `grep -hro --exclude="cache" --exclude="main" --exclude="*.cache" \\
+                       "documentroot.*\\|servername.*" "/var/cpanel/userdata/${user}"`;
+
+    my @lines = split("\n", $output);
+
+    my $docroot = '';
+    my $serverName = '';
+    my %serverNames;
+
+    foreach my $i (@lines) {
+
+        if ( $docroot eq '' ) {
+
+            if ( substr($i, 0, 13) eq 'documentroot:' ) {
+                $docroot = substr($i, 13);
+                $docroot =~ s/^\s+|\s+$//g;
+            }
+        }
+        elsif ( substr( $i, 0, 11) eq 'servername:' ) {
+            $serverName = substr($i, 11);
+            $serverName =~ s/^\s+|\s+$//g;
+
+            if ( -d $docroot ) {
+                $serverNames{$serverName} = { 'docroot' => $docroot };
+            }
+
+            # looking for next docroot
+            $docroot = '';
+        }
+        else {
+            # bad entry ignore
+            $docroot = '';
+        }
+    }
+
+    foreach my $serverName (keys %serverNames) {
+        my $infoRef = _getServerNameSslAndEcCertInfo($serverName);
+        my %info = %$infoRef;
+
+        $serverNames{$serverName}{'sslVh'} = $info{'sslVh'};
+        $serverNames{$serverName}{'ecCert'} = $info{'ecCert'};
+        $serverNames{$serverName}{'ecCertFingerprint'} = $info{'ecCertFingerprint'};
+    }
+
+    return \%serverNames;
+}
+
+sub _getDomainOwner
+{
+    my ($domain) = @_;
+
+    my @fullCmd = (
+        '/usr/local/cpanel/bin/whmapi1',
+        'getdomainowner',
+        "domain=${domain}",
+        '--output=json'
+    );
+
+    my $output = '';
+
+    IPC::Run::run \@fullCmd, \undef, \$output;
+
+    my $retVar = $? >> 8;
+    my $dataRef = decode_json($output);
+    my %data = %$dataRef;
+
+    return $data{'data'}{'user'};
+}
+
+sub _getSuCmdArr
+{
+   my ($username) = @_;
+
+    my @suCmd = (
+        "su",
+        $username,
+        "-s",
+        "/bin/bash",
+        "-c"
+    );
+
+    return @suCmd;
+}
+
+sub _getServerNameSslAndEcCertInfo
+{
+    my ($serverName) = @_;
+
+    my %info;
+
+    $info{'sslVh'} = 0;
+    $info{'ecCert'} = 0;
+    $info{'ecCertFingerprint'} = '';
+
+    my $sslVhostsDir = "/var/cpanel/ssl/apache_tls";
+    my $domainSslVhostDir = "${sslVhostsDir}/${serverName}";
+
+    if ( -d $domainSslVhostDir && ! -f "${sslVhostsDir}/.pending_delete/${serverName}" ) {
+        $info{'sslVh'} = 1;
+
+        my $combinedEcCertFile = "${domainSslVhostDir}/combined.ecc";
+
+        if ( -f $combinedEcCertFile ) {
+            $info{'ecCert'} = 1;
+
+            my %res = _getPluginGeneratedEcCertData($combinedEcCertFile);
+            $info{'ecCertFingerprint'} = $res{'retCert'};
+        }
+    }
+
+    return \%info;
+}
+
+1;

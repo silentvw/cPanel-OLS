@@ -1,0 +1,63 @@
+Welcome to the LiteSpeed Web Cache Manager user-end cPanel plugin's 'lang/cust'
+directory. This directory will contain any custom translations you would like
+to use with the LiteSpeed Web Cache Manager user-end cPanel plugin.
+
+This file will now explain how to provide your own custom translations for this
+plugin based on the language selected in a user's cPanel dashboard.
+
+1) Choose a cPanel locale to provide translations for. A full list of available
+locales can be found through WHM under
+
+Home >> Locales >> View Available Locales
+
+2) Once a locale has been chosen, create a directory under this plugin's
+'lang/cust' directory for that locale using the same name as the locale. Then
+create an 'en_US' directory under that, and an 'LC_MESSAGES' directory under the
+'en_US' directory.
+
+Using French as an example (cPanel locale 'fr') our directory structure would look
+like:
+
+lang/
+-cust/
+--fr/
+---en_US/
+----LC_MESSAGES/
+
+Note: The 'en_US' directory exists as a workaround for linux systems that may not
+contain certain locales, as it is commonly installed on most systems. If you
+are running into issues getting your translations to appear, please make sure
+that the 'en_US.utf8' locale is installed on your system.
+
+Note: As long as the 'lang/cust/fr' directory exists, this directory will always be
+used when looking for translation files, regardless of wheather or not any
+exist. If you would like to go back to checking the official translation
+directory under 'lang', you must remove/rename the 'cust' locale directory.
+
+3) Generate a 'messages.po' file for your desired language based on the
+'messages.pot' file provided under the 'lang' directory, or copy the 'messages.po' file
+for your locale if it has already been officially provided under the 'lang'
+directory.
+
+4) Update the generated 'messages.po' file with any new translations. You should
+also update the 'messages.po' file header info if you have not already.
+
+5) Generate a 'messages.mo' file based on your updated 'messages.po' file and place
+both the 'messages.po' and 'messages.mo' files under the custom 'LC_MESSAGES'
+directory created earlier.
+
+6) Visit the LiteSpeed user-end cPanel plugin through a cPanel dashboard and
+confirm that your translations are appearing.
+
+CAUTION: Any custom translation files will be lost upon uninstalling the
+LiteSpeed Web Cache Manager user-end cPanel plugin. Please keep a copy of any
+custom translation files elsewhere to prevent loosing these files.
+
+That should be all that is required to begin using custom translations with the
+LiteSpeed user-end cPanel plugin.
+
+If you would like to have your custom translations included as official
+translations in future versions of the LiteSpeed Web Cache Manager user-end
+cPanel plugin, or have updates for exisitng official translations, please send
+an email including the locale and both 'messages.po' and 'messages.mo' files to
+info@litespeedtech.com.

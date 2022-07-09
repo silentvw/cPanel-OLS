@@ -1,0 +1,42 @@
+#!/usr/local/cpanel/3rdparty/bin/php
+<?php
+
+/********************************************
+ * LiteSpeed Web Cache Management Plugin for cPanel
+ *
+ * @author LiteSpeed Technologies, Inc. (https://www.litespeedtech.com)
+ * @copyright (c) 2020
+ * @since 2.1
+ * *********************************************/
+
+include __DIR__ . '/CertAction.php';
+
+/**
+ *
+ * @since 2.1
+ *
+ * @param int     $exitCode
+ * @param string  $msg
+ */
+function exitScript( $exitCode, $msg )
+{
+    if ( ! empty($msg) ) {
+        echo "{$msg}\n";
+    }
+
+    exit($exitCode);
+}
+
+if ( empty($_SERVER['argv']) || $_SERVER['argc'] < 2 ) {
+    exitScript(CertAction::EXIT_ERROR, 'Cli Illegal entrance!');
+}
+
+$caller = $_SERVER['argv'][0];
+$input = array_slice($_SERVER['argv'], 1);
+
+try {
+    CertAction::run($caller, $input);
+}
+catch ( Exception $e ) {
+    exitScript($e->getCode(), $e->getMessage());
+}

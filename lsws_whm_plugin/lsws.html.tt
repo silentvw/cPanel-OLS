@@ -1,0 +1,55 @@
+[%
+USE Whostmgr;
+USE JSON;
+
+IF locale.get_html_dir_attr() == 'rtl';
+    SET rtl_bootstrap = Whostmgr.find_file_url('/3rdparty/bootstrap-rtl/optimized/dist/css/bootstrap-rtl.min.css');
+END;
+
+SET styleSheets = [
+    rtl_bootstrap,
+    '/libraries/fontawesome/css/font-awesome.min.css',
+    '/combined_optimized.css',
+    '/themes/x/style_optimized.css',
+    'static/jquery.dataTables.min.css',
+    'static/custom.min.css?v=1.10'
+];
+
+SET jsScripts = [
+    '/cjt/cpanel-all-min.js',
+    'static/js/jquery-3.2.1.min.js',
+    'static/js/jquery.dataTables.min.js',
+    'static/js/litespeed.min.js?v=1.6'
+];
+
+SET hideWHMInterface = 0;
+
+WRAPPER 'master_templates/master.tmpl'
+    breadcrumbdata = {
+            previous = [
+                    {name = "Home",url = "/scripts/command?PFILE=main"},
+                    {name = "Plugins",url="/scripts/command?PFILE=Plugins"}
+            ],
+            name = 'LiteSpeed Web Server Plugin',
+            url = '/cgi/lsws/lsws.cgi',
+    },
+    header = locale.maketext("LiteSpeed Web Server")
+    skipheader = 1,
+    stylesheets = styleSheets,
+    extrastyle = '.lsws-iframe {
+    top:0;
+    left:0;
+    overflow:hidden;
+    width:100%;
+    height:100%;
+    border:none;
+    position:absolute;
+}',
+    scripts = jsScripts,
+    inside_frame_or_tab_or_popup = hideWHMInterface,
+    theme='bootstrap';
+%]
+
+<div id="lswsContent"><img src="./static/icons/ajax-loader.gif" /></div>
+
+[% END %]

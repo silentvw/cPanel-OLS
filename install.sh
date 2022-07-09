@@ -38,6 +38,10 @@ cp lswsparse.service /etc/systemd/system/lswsparse.service
 systemctl start lswsparse
 systemctl enable lswsparse
 systemctl status lswsparse
+
+echo " Installing Modified Litespeed cPanel Extension "
+cd lsws_whm_plugin && bash lsws_whm_plugin_install.sh
+
 echo " "
 echo " "
 echo " APACHE CONVERTED TO LSWS DONE! "

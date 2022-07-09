@@ -1,0 +1,865 @@
+#!/bin/sh
+
+##########################################################
+# LiteSpeed Web Server Plugin for WHM
+#
+# @author LiteSpeed Technologies, Inc. (https://www.litespeedtech.com)
+# @copyright (c) 2013-2022
+##########################################################
+
+#
+# Init Common Variables
+#
+init_var()
+{
+    OS="$(uname -s)"
+    
+    if [ "x${OS}" = "xFreeBSD" ] || [ "x${OS}" = "xDarwin" ] ; then
+        PS_CMD="ps -ax"
+    else
+        PS_CMD="ps -ef"
+    fi
+
+    if [ "x${OS}" = "xFreeBSD" ] ; then
+        LSWS_CTLCMD="/usr/local/etc/rc.d/lsws.sh"
+        AP_CTLCMD="/usr/local/etc/rc.d/httpd"
+    else
+        LSWS_CTLCMD="/sbin/service lsws"
+        AP_CTLCMD="/sbin/service httpd"
+    fi
+
+    LSWS_PIDFILE="/tmp/lshttpd/lshttpd.pid"
+    SERIAL_FILE="${LSWS_HOME}/conf/serial.no"
+    LICENSE_KEY_FILE="/tmp/license.key"
+    TRIAL_KEY_FILE="/tmp/trial.key"
+    CONF="${LSWS_HOME}/conf/httpd_config.xml"
+    LSWSBIN="${LSWS_HOME}/bin/lshttpd"
+    AP_PROC="httpd"
+
+    LSADDON_DIR="/usr/local/cpanel/whostmgr/docroot/cgi/lsws"
+    LSWS_HOME_DEF="${LSADDON_DIR}/LSWS_HOME.config"
+    LSWS_SWITCH_FLAG="${LSWS_HOME}/admin/tmp/.switched2lsws"
+}
+
+err_exit()
+{
+  if [ "${1}" -ne 0 ] ; then
+    echo "**ERROR** ${2}"
+    exit "${1}"
+  fi
+}
+
+msg_exit()
+{
+    echo "${2}"
+    exit "${1}"
+}
+
+cat_file()
+{
+    if [ -e "${1}" ] ; then
+        cat "${1}"
+        exit 0
+    else
+        echo ""
+        exit 1
+    fi
+}
+
+detect_lsws_pid()
+{
+    LSPID=0
+
+    if [ -f "${LSWS_PIDFILE}" ] ; then
+        FPID="$(cat "${LSWS_PIDFILE}")"
+        
+        if [ "x${FPID}" != "x" ] ; then
+            PL="$(${PS_CMD} | grep -w 'lshttpd\|litespeed\|lscgid' | grep -v grep | grep -w "${FPID}")"
+                
+            if [ "x${PL}" != "x" ] ; then
+                LSPID="${FPID}"
+            fi
+        fi
+    fi
+}
+
+detect_ap_pid()
+{
+    APPID=0
+
+    FPID="$(${PS_CMD} | grep -w "${AP_PROC} \|${AP_PROC}$\|^${AP_PROC}$" \
+            | grep -v "lscgid\|litespeed\|lshttpd\|grep\|/usr/bin/logger" | grep -w "root" \
+            | awk '{print $2}')"
+            
+    if [ "x${FPID}" != "x" ] ; then
+        APPID="${FPID}"
+    fi
+}
+
+#
+# start LiteSpeed
+#
+start_fake_apache()
+{
+detect_lsws_pid
+}
+start_fake_apachee()
+{
+    ${AP_CTLCMD} start 2>&1
+
+    RETRY=30
+    LSPID=0
+
+    while [ "${RETRY}" -gt 0 ] && [ "${LSPID}" -eq 0 ]
+    do
+        RETRY="$((RETRY - 1))"
+        sleep 1
+        detect_lsws_pid
+    done
+}
+stop_lsws()
+{
+sleep 1
+}
+astop_lsws()
+{
+    pkill wswatch.sh 2>/dev/null
+
+    ${LSWS_CTLCMD} stop
+    ${AP_CTLCMD} stop 1>/dev/null 2>&1
+
+    RETRY=30
+    LSPID=1
+
+    while [ "${RETRY}" -gt 0 ] && [ "${LSPID}" -ne 0 ]
+    do
+        RETRY="$((RETRY - 1))"
+        sleep 1
+        detect_lsws_pid
+    done
+
+    if [ "${LSPID}" -eq 0 ] ; then
+        pkill -9 lshttpd
+        pkill -9 litespeed
+        echo "LiteSpeed Stopped."
+    else
+        echo "LiteSpeed is still running. Fail to stop within 30 secs."
+        echo "Will use pkill command to stop"
+
+        pkill -9 lshttpd
+        pkill -9 litespeed
+        sleep 1
+
+        detect_lsws_pid
+
+        if [ "${LSPID}" -eq 0 ] ; then
+            echo "LiteSpeed Stopped."
+        else
+            echo "LiteSpeed is still running. Fail to stop using kill command."
+        fi
+    fi
+}
+stop_apache() {
+sleep 1
+}
+astop_apache()
+{
+    ${AP_CTLCMD} stop
+
+    RETRY=30
+    APPID=1
+
+    while [ "${RETRY}" -gt 0 ] && [ "${APPID}" -ne 0 ]
+    do
+        RETRY="$((RETRY - 1))"
+        sleep 1
+        detect_ap_pid
+    done
+
+   if [ "${APPID}" -eq 0 ] ; then
+        echo "Apache Stopped."
+    else
+        echo "Apache is still running. Fail to stop within 30 secs."
+        echo "Will use pkill command to stop"
+
+        pkill -9 "${AP_PROC}"
+        sleep 1
+
+        detect_ap_pid
+
+        if [ "${APPID}" -eq 0 ] ; then
+            echo "Apache Stopped."
+        else
+            echo "Apache is still running. Fail to stop using kill command."
+        fi
+    fi
+}
+change_port_offset() {
+sleep 1
+}
+echange_port_offset()
+{
+    PORT_OFFSET="${1}"
+
+    if [ ! -f "${CONF}" ] ; then
+        err_exit 1 "${0}: invalid conf file directory!"
+    fi
+
+    /bin/cp -f "${CONF}" "${CONF}.orig"
+
+    sed -e "s/<apachePortOffset>.*<\/apachePortOffset>/<apachePortOffset>${PORT_OFFSET}<\/apachePortOffset>/" "${CONF}.orig" > "${CONF}"
+
+    err_exit "${?}" "${0}: sed command error, please try to modify apache port offset manually from config file ${CONF}"
+    
+    /bin/rm -f "${CONF}.orig"
+}
+
+SwitchToLiteSpeed() {
+sleep 1
+}
+sSwitchToLiteSpeed()
+{
+    change_port_offset 0
+    
+    stop_apache
+    
+    #sleep 8 
+    pkill -9 httpd
+    
+    apache_wrapper 0
+
+    /usr/local/cpanel/bin/whmapi1 configureservice service=httpd enabled=1 monitored=1
+
+    start_fake_apache
+
+    if [ "${LSPID}" -gt 0 ] ; then
+        pkill wswatch.sh 2>/dev/null
+        cd /usr/local/lsws/logs
+        nohup ../bin/wswatch.sh </dev/null >/dev/null 2>&1 &
+        msg_exit 0 "LiteSpeed started successfully."
+    fi
+
+    echo "LiteSpeed is not up within 30 secs, try again by removing /tmp/lshttpd/."
+
+    pkill -9 lshttpd
+    pkill -9 litespeed
+    /bin/rm -rf /tmp/lshttpd
+
+    start_fake_apache
+
+    # wrapper needs to run after lsws start
+
+    if [ "${LSPID}" -gt 0 ] ; then
+        pkill wswatch.sh 2>/dev/null
+        cd /usr/local/lsws/logs
+        nohup ../bin/wswatch.sh 2>/dev/null &
+
+        msg_exit 0 "LiteSpeed started successfully."
+    else
+        apache_wrapper 1
+        err_exit 1 "LiteSpeed is not up within 60 secs, please check the error log and try again."
+    fi
+}
+
+apache_wrapper()
+{
+    RESTORE="${1}"
+
+    INIT_DIR=""
+
+    for path in "/etc/init.d" "/etc/rc.d/init.d"
+    do
+        if [ "${INIT_DIR}" = "" ] \
+                && { [ -e "${path}/${AP_PROC}" ] || [ -e "${path}/${AP_PROC}.ls_bak" ] ;}
+        then
+            INIT_DIR="${path}"
+        fi
+    done
+
+    # use systemd if possible, need to use same method as apache
+    SYSTEMDDIR=""
+    
+    for path in "/etc/systemd/system" "/usr/lib/systemd/system" "/lib/systemd/system"
+    do
+        if [ "${SYSTEMDDIR}" = "" ] \
+                && [ -d "${path}" ] \
+                && [ -e "${path}/${AP_PROC}.service" ] ; then
+
+            SYSTEMDDIR="${path}"
+        fi
+    done
+
+    NEED_PROTECT="$(/usr/local/cpanel/3rdparty/bin/perl -MCpanel::Config::Httpd::Perms -e'print Cpanel::Config::Httpd::Perms::webserver_runs_as_user();')"
+
+    if [ "${RESTORE}" -eq 1 ] ; then
+        # restore Apache binary Files
+        if [ -f "/usr/local/apache/bin/${AP_PROC}_ls_bak" ] ; then
+            mv -f "/usr/local/apache/bin/${AP_PROC}_ls_bak" "/usr/local/apache/bin/${AP_PROC}"
+        fi
+
+        if [ -f "/usr/sbin/${AP_PROC}_ls_bak" ] ; then
+            mv -f "/usr/sbin/${AP_PROC}_ls_bak" "/usr/sbin/${AP_PROC}"
+        fi
+
+        if [ -f "/scripts/restartsrv_httpd_ls_bak" ] ; then
+            mv -f "/scripts/restartsrv_httpd_ls_bak" "/scripts/restartsrv_httpd"
+        fi
+
+        if [ "${NEED_PROTECT}" -eq 1 ] ; then
+            /scripts/enablefileprotect
+            echo "Added fileprotect for Apache"
+        fi
+
+        if [ -f "/etc/cpanel/ea4/paths.conf" ]; then
+            /bin/cp "/etc/cpanel/ea4/paths.conf" "/etc/cpanel/ea4/paths.conf.tmp"
+            sed -e 's#/usr/local/lsws/bin/lswsctrl#/usr/sbin/apachectl#' </etc/cpanel/ea4/paths.conf.tmp >/etc/cpanel/ea4/paths.conf
+        fi
+
+        # restore rc file
+        if [ "${SYSTEMDDIR}" != "" ] \
+                && [ -e "${SYSTEMDDIR}/${AP_PROC}.service.ls_bak" ]  ; then
+
+            mv -f "${SYSTEMDDIR}/${AP_PROC}.service.ls_bak" "${SYSTEMDDIR}/${AP_PROC}.service"
+            systemctl daemon-reload
+        fi
+
+        if [ "${INIT_DIR}" != "" ] \
+                && [ -e "${INIT_DIR}/${AP_PROC}.ls_bak" ] ; then
+
+            mv -f "${INIT_DIR}/${AP_PROC}.ls_bak" "${INIT_DIR}/${AP_PROC}"
+        fi
+
+        if [ -f "${LSWS_SWITCH_FLAG}" ] ; then
+            /bin/rm -f "${LSWS_SWITCH_FLAG}"
+        fi
+
+    else
+
+        if [ "${NEED_PROTECT}" -eq 1 ] ; then
+            /scripts/disablefileprotect
+            echo "fileprotect removed, not needed by LiteSpeed"
+        fi
+
+        if [ -f "/etc/cpanel/ea4/paths.conf" ]; then
+            /bin/cp "/etc/cpanel/ea4/paths.conf" "/etc/cpanel/ea4/paths.conf.tmp"
+            sed -e 's#/usr/sbin/apachectl#/usr/local/lsws/bin/lswsctrl#' </etc/cpanel/ea4/paths.conf.tmp >/etc/cpanel/ea4/paths.conf
+        fi
+
+        # add rc wrapper
+        if [ "${SYSTEMDDIR}" != "" ]  ; then
+            # copy the correct file again to avoid wrong data
+            "${LSWS_HOME}/admin/misc/rc-inst.sh"
+
+            if  [ ! -e "${SYSTEMDDIR}/${AP_PROC}.service.ls_bak" ] ; then
+                mv -f "${SYSTEMDDIR}/${AP_PROC}.service" "${SYSTEMDDIR}/${AP_PROC}.service.ls_bak"
+            fi
+
+            ln -sf "${SYSTEMDDIR}/lshttpd.service" "${SYSTEMDDIR}/${AP_PROC}.service"
+            systemctl daemon-reload
+        fi
+
+        if [ "${INIT_DIR}" != "" ] ; then
+            
+            if [ ! -e "${INIT_DIR}/${AP_PROC}.ls_bak" ] ; then
+                mv -f "${INIT_DIR}/${AP_PROC}" "${INIT_DIR}/${AP_PROC}.ls_bak"
+            fi
+
+            ln -sf ./lsws "${INIT_DIR}/${AP_PROC}"
+        fi
+        
+        # set flag
+        touch "${LSWS_SWITCH_FLAG}"
+    fi
+}
+SwitchToApache() {
+sleep 1
+}
+eSwitchToApache()
+{
+    pkill wswatch.sh 2>/dev/null
+    detect_lsws_pid
+    
+    if [ "${LSPID}" -gt 0 ] ; then
+        echo "LiteSpeed is running, stop it first."
+        
+        stop_lsws
+
+        if [ "${LSPID}" -gt 0 ] ; then
+            err_exit 1 "Abort."
+        fi
+    fi
+
+    # if running, stop first
+    detect_ap_pid
+    if [ "${APPID}" -gt 0 ] ; then
+        stop_apache
+    fi
+
+    # restore Apache Files, wrapper needs to run before Apache start
+    apache_wrapper 1
+
+    # wait 1 sec before start apache
+    sleep 1
+
+    /usr/local/cpanel/bin/whmapi1 configureservice service=httpd enabled=1 monitored=1
+    
+    #
+    # start Apache
+    #
+    # does not change the memory limits, does not work well.
+    # $AP_CTLCMD start
+    #
+    # call a cPanel script
+    /scripts/restartsrv_httpd
+
+    RETRY=30
+    APPID=0
+
+    while [ "${RETRY}" -gt 0 ] && [ "${APPID}" -eq 0 ]
+    do
+        detect_ap_pid
+        RETRY="$((RETRY - 1))"
+
+        sleep 1
+    done
+     
+    if [ "${APPID}" -ne 0 ] ; then
+        echo "Apache started successfully."
+    else
+        err_exit 1 "Apache is not up within 30 secs. Please check the log file."
+    fi
+}
+SetRunOnBoot()
+{
+sleep 1
+}
+eSetRunOnBoot()
+{
+    chkconfigPath="$(which chkconfig)"
+
+    "${chkconfigPath}" lsws off
+    "${chkconfigPath}" httpd on
+
+    return 0
+}
+CheckLicense() {
+echo "License is okay!"
+}
+eCheckLicense()
+{
+   if [ -f "${SERIAL_FILE}" ] ; then
+        
+        if [ ! -e "${LICENSE_KEY_FILE}" ] ; then
+            "${LSWSBIN}" -r 2>&1
+        fi
+
+        if [ ! -e "${LICENSE_KEY_FILE}" ] ; then
+            err_exit 1 "Failed to find a license key file, abort!"
+        else
+            "${LSWSBIN}" -V 2>&1
+        fi
+   elif [ -f "${TRIAL_KEY_FILE}" ] ; then
+       "${LSWSBIN}" -V 2>&1
+   else
+       err_exit 1 "Failed to find serial.no ${SERIAL_FILE} or trial key ${TRIAL_KEY_FILE} file, abort!"
+   fi
+}
+restore_exit() {
+sleep 1
+}
+erestore_exit()
+{
+    if [ "${SERIAL}" = "TRIAL" ] ; then
+
+        if [ -f "${TRIAL_KEY_FILE}" ] ; then
+            /bin/rm -f "${TRIAL_KEY_FILE}"
+            echo "   removed retrieved trial.key"
+        fi
+    else
+
+        if [ -f "${SERIAL_FILE}" ] ; then
+            /bin/rm -f "${SERIAL_FILE}"
+            echo "   removed uploaded serial.no"
+        fi
+
+        if [ -f "${LICENSE_KEY_FILE}" ] ; then
+            /bin/rm -f "${LICENSE_KEY_FILE}"
+            echo "   removed the new license.key"
+        fi
+    fi
+
+    if [ "x" != "x${BACKUP_SERIAL_NO}" ] ; then
+        mv "${BACKUP_SERIAL_NO}" "${SERIAL_FILE}"
+        echo "   restored the original serial.no from ${BACKUP_SERIAL_NO}"
+    fi
+
+    if [ "x" != "x${BACKUP_LICENSE_KEY}" ] ; then
+        mv "${BACKUP_LICENSE_KEY}" "${LICENSE_KEY_FILE}"
+        echo "   restored the original license.key from ${BACKUP_LICENSE_KEY}"
+    fi
+
+    if [ "x" != "x${BACKUP_TRIAL_KEY}" ] ; then
+        mv "${BACKUP_TRIAL_KEY}" "${TRIAL_KEY_FILE}"
+        echo "   restored the original trial.key from ${BACKUP_TRIAL_KEY}"
+    fi
+
+    err_exit "${1}" "${2}"
+}
+DownloadTrialKey() {
+sleep 1
+}
+eDownloadTrialKey()
+{
+    if [ "${OS}" = "FreeBSD" ]; then
+        fetch -q -T 3 -o "${TRIAL_KEY_FILE}" "${1}"
+    else
+        # -t is tries, -T is timeout
+        wget -q -t 1 -T 3 --output-document="${TRIAL_KEY_FILE}" "${1}"
+    fi
+}
+GetTrialKey() {
+sleep 1
+}
+eGetTrialKey()
+{
+    LICENSE_SITE="http://license.litespeedtech.com/reseller/trial.key"
+    LICENSE_SITE_2="http://license2.litespeedtech.com/reseller/trial.key"
+
+    if ! DownloadTrialKey "${LICENSE_SITE}"; then
+        echo "Failed to retrieve a trial license from license.litespeedtech.com."
+        echo "Trying license2.litespeedtech.com ..."
+
+        if ! DownloadTrialKey "${LICENSE_SITE_2}"; then
+            echo "Failed to retrieve a trial license"
+            restore_exit 1 "Aborted!"
+        fi
+    fi
+}
+
+#
+# 01/29/19: This function is used by the cPanel team directly. Do not change
+#           interface behavior.
+#
+SwitchLicense() {
+sleep 1
+}
+eSwitchLicense()
+{
+    SERIAL="${1}"
+
+    echo "Back up current license files under ${LSWS_HOME}/conf/ ..."
+
+    if [ -f "${SERIAL_FILE}" ] ; then
+        BACKUP_SERIAL_NO="${SERIAL_FILE}".backup.$$
+        mv "${SERIAL_FILE}" "${BACKUP_SERIAL_NO}"
+        err_exit "${?}" "fail to backup current serial.no"
+        echo "... saved current serial.no to ${BACKUP_SERIAL_NO}"
+    fi
+
+    if [ -f "${LICENSE_KEY_FILE}" ] ; then
+        BACKUP_LICENSE_KEY="${LICENSE_KEY_FILE}".backup.$$
+        mv "${LICENSE_KEY_FILE}" "${BACKUP_LICENSE_KEY}"
+        err_exit "${?}" "fail to backup current license.key"
+        echo "... saved current license.key to ${BACKUP_LICENSE_KEY}"
+    fi
+    
+    if [ "${SERIAL}" = "TRIAL" ] ; then
+        echo "Trying to switch to a trial license ..."
+        
+        GetTrialKey
+    else
+
+        if [ -f "${TRIAL_KEY_FILE}" ] ; then
+            BACKUP_TRIAL_KEY="${TRIAL_KEY_FILE}".backup.$$
+            mv "${TRIAL_KEY_FILE}" "${BACKUP_TRIAL_KEY}"
+            err_exit "${?}" "fail to back up current trial.key"
+            echo "... saved current trial.key to ${BACKUP_TRIAL_KEY}"
+        fi
+
+        echo "Trying to switch to a new production license ..."
+
+        if echo "${SERIAL}" > "${SERIAL_FILE}"; then
+            echo "... Saved serial number \"${SERIAL}\" to ${SERIAL_FILE}"
+        else
+            echo "Failed to save serial number to ${SERIAL_FILE}!"
+            restore_exit 1 "Aborted!"
+        fi
+
+            # need to retrieve new license file
+        echo "... Serial number is available."
+        echo "... Contacting licensing server for license key ..."
+
+        if REGISTER_OUTPUT="$("${LSWSBIN}" -r 2>&1)"; then
+            echo "... License key received: ${REGISTER_OUTPUT}"
+        else
+            echo "... failed to retrieve license key, please double check your serial number: ${REGISTER_OUTPUT}."
+            restore_exit 1 "Aborted!"
+        fi
+    fi
+
+    if ! TEST_RESULT="$("${LSWSBIN}" -t 2>&1)"; then
+        echo "Failed to switch to the new license."
+        echo "... ${TEST_RESULT}"
+        restore_exit 1 "Aborted!"
+    else
+        echo "Successfully switched to the new license."
+        echo "... ${TEST_RESULT}"
+        echo ""
+        echo "*** Your old licenses have been backed up in the same directory."
+        echo ""
+
+        detect_lsws_pid
+
+        if [ "${LSPID}" -gt 0 ] ; then
+            echo "Restarting LiteSpeed to apply the new license."
+            ${LSWS_CTLCMD} restart
+        fi
+    fi
+}
+TransferLicense() {
+sleep 1
+}
+eTransferLicense()
+{
+    echo "License status before migration:"
+
+    if ! "${LSWSBIN}" -m 2>&1 ; then
+        err_exit 1 "Failed to migrate current license."
+    fi
+
+    echo "Successfully migrated current license."
+    echo "License status after migration:"
+    CheckLicense
+
+    detect_lsws_pid
+
+    if [ "${LSPID}" -gt 0 ] ; then
+        echo "Restarting LiteSpeed to apply the new license."
+        ${LSWS_CTLCMD} restart
+    fi
+
+}
+VersionUp()
+{
+sleep 1
+}
+eVersionUp()
+{
+    "${LSWS_HOME}/admin/misc/lsup.sh" -f -v "${1}" 2>&1
+}
+VersionSwitch() {
+sleep 1
+}
+eVersionSwitch()
+{
+    "${LSWS_HOME}/admin/misc/mgr_ver.sh" "${1}" 2>&1
+}
+VersionDel() {
+sleep 1
+}
+eVersionDel()
+{
+    "${LSWS_HOME}/admin/misc/mgr_ver.sh" -d "${1}" 2>&1
+}
+
+add_lsws_line()
+{
+    HOOK_SCRIPT="/scripts/${1}"
+    EXTRA_PARAM="${2}"
+    CMD_LINE="sh ${LSADDON_DIR}/bin/whm_eahook.sh ${1} ${EXTRA_PARAM}"
+
+    if [ -f "${HOOK_SCRIPT}" ] ; then
+
+        if ! sed -i '/cgi\/lsws/d' "${HOOK_SCRIPT}"; then
+            echo "sed command error: ${?} when adding lsws line in ${HOOK_SCRIPT}"
+            exit 1
+        fi
+
+        if ! echo "${CMD_LINE}" >> "${HOOK_SCRIPT}"; then
+            echo "cannot append to file ${HOOK_SCRIPT} : ${?}"
+            exit 1
+        fi
+    else
+
+        if ! echo '#!/bin/sh' > "${HOOK_SCRIPT}"; then
+            echo "cannot create file ${HOOK_SCRIPT} : ${?}"
+            exit 1
+        fi
+
+        if ! echo "${CMD_LINE}" >> "${HOOK_SCRIPT}"; then
+            echo "cannot append to file ${HOOK_SCRIPT} : ${?}"
+            exit 1
+        fi
+    fi
+
+    if ! chmod +x "${HOOK_SCRIPT}"; then
+        echo "cannot chmod for file ${HOOK_SCRIPT} : ${?}"
+        exit 1
+    fi
+}
+
+EasyApacheHookEnable()
+{
+    # '$4' use here could not be verified and has been left in to be safe.
+
+    # shellcheck disable=SC2016
+    add_lsws_line "before_httpd_restart_tests" '$4'
+    # shellcheck disable=SC2016
+    add_lsws_line "after_httpd_restart_tests" '$4'
+    add_lsws_line "before_apache_make"
+}
+
+remove_lsws_line()
+{
+    HOOK_SCRIPT="/scripts/${1}"
+
+    if [ -f "${HOOK_SCRIPT}" ] ; then
+
+        if ! sed -i '/cgi\/lsws/d' "${HOOK_SCRIPT}"; then
+            echo "sed command error: ${?} when removing lsws line in ${HOOK_SCRIPT}"
+            exit 1
+        fi
+
+        REMAIN="$(cat "${HOOK_SCRIPT}")"
+
+        if [ "x${REMAIN}" = 'x#!/bin/sh' ] ; then
+            /bin/rm -f "${HOOK_SCRIPT}"
+        fi
+    fi
+}
+
+EasyApacheHookDisable() 
+{
+    remove_lsws_line "before_httpd_restart_tests"
+    remove_lsws_line "after_httpd_restart_tests"
+    remove_lsws_line "before_apache_make"
+}
+
+EasyApacheHookRefresh() 
+{
+    # check if hook is enabled, if yes, update with latest script, if lsws not there, remove hook
+    
+    TEST_SCRIPT="/scripts/before_httpd_restart_tests"
+
+    if [ -f "${TEST_SCRIPT}" ] ; then
+        RESULT="$(grep "^sh /usr/local/cpanel/whostmgr/docroot/cgi/lsws/" "${TEST_SCRIPT}")"
+       
+         if [ "x${RESULT}" != "x" ] ; then
+            echo "EasyApache Hooks is enabled"
+
+            EasyApacheHookDisable
+
+            if [ -f "${LSWS_HOME_DEF}" ] ; then
+                echo "LSWS is installed, refresh hook scripts"
+                EasyApacheHookEnable
+            else
+                echo "LSWS is not installed, removed existing hooks"
+            fi
+        fi
+    fi
+}
+UninstallLiteSpeed() {
+sleep 1
+}
+eUninstallLiteSpeed()
+{
+    KEEP_CONF="${1}"
+    KEEP_LOG="${2}"
+
+    if [ "x${KEEP_CONF}" != "xY" ] && [ "x${KEEP_CONF}" != "xN" ] ; then
+        err_exit 1 "[ERROR] Invalid parameter KEEP_CONF!"
+    fi
+
+    if [ "x${KEEP_LOG}" != "xY" ] && [ "x${KEEP_LOG}" != "xN" ] ; then
+        err_exit 1 "[ERROR] Invalid parameter KEEP_LOG!"
+    fi
+
+    SwitchToApache
+
+    CUR_DIR="$(pwd)"
+    LSINSTALL_DIR="${LSWS_HOME}/admin/misc"
+
+    if [ ! -d "${LSINSTALL_DIR}" ]; then
+        err_exit 1 "[ERROR] Cannot find dir ${LSINSTALL_DIR}"
+    fi
+
+    INST_USER="$(id)"
+    INST_USER="$(expr "${INST_USER}" : 'uid=.*(\(.*\)) gid=.*')"
+
+    if [ "x${INST_USER}" != "xroot" ]; then
+        # shellcheck disable=SC2012
+        DIR_OWN="$(ls -ld "${LSWS_HOME}" | awk '{print $3}')"
+
+        if [ "x${DIR_OWN}" != "x${INST_USER}" ]; then
+            err_exit 1 "[ERROR] You do not have the permission to uninstall LiteSpeed web server!"
+        fi
+    fi
+
+    if [ "x${INST_USER}" = "xroot" ]; then
+        echo ""
+        echo "Uninstalling rc scripts ..."
+        "${LSINSTALL_DIR}/rc-uninst.sh"
+        echo ""
+    fi
+
+    DELETE_ALL=1
+
+    if [ "${KEEP_CONF}" != "Y" ] ; then
+        /bin/rm -rf "${LSWS_HOME}/conf"
+        echo "removed ${LSWS_HOME}/conf"
+    else
+        DELETE_ALL=0
+        echo "keep ${LSWS_HOME}/conf untouched"
+    fi
+
+    if [ "${KEEP_LOG}" != "Y" ] ; then
+        /bin/rm -rf "${LSWS_HOME}/logs"
+        echo "removed ${LSWS_HOME}/logs"
+    else
+        DELETE_ALL=0
+        echo "keep ${LSWS_HOME}/logs untouched"
+    fi
+    
+    /bin/rm -rf "${LSWS_HOME}/add-ons"
+    echo "removed ${LSWS_HOME}/add-ons"
+    /bin/rm -rf "${LSWS_HOME}/admin"
+    echo "removed ${LSWS_HOME}/admin"
+    /bin/rm -rf "${LSWS_HOME}/autoupdate"
+    echo "removed ${LSWS_HOME}/autoupdate"
+    /bin/rm -rf "${LSWS_HOME:?}/bin"
+    echo "removed ${LSWS_HOME}/bin"
+    /bin/rm -rf "${LSWS_HOME}/DEFAULT"
+    echo "removed ${LSWS_HOME}/DEFAULT"
+    /bin/rm -rf "${LSWS_HOME}/docs"
+    echo "removed ${LSWS_HOME}/docs"
+    /bin/rm -rf "${LSWS_HOME}/fcgi-bin"
+    echo "removed ${LSWS_HOME}/fcgi-bin"
+    /bin/rm -rf "${LSWS_HOME:?}/lib"
+    echo "removed ${LSWS_HOME}/lib"
+    /bin/rm -rf "${LSWS_HOME}/php"
+    echo "removed ${LSWS_HOME}/php"
+    /bin/rm -rf "${LSWS_HOME}/phpbuild"
+    echo "removed ${LSWS_HOME}/phpbuild"
+    /bin/rm -rf "${LSWS_HOME}/share"
+    echo "removed ${LSWS_HOME}/share"
+    /bin/rm -rf "${LSWS_HOME}"/LICENSE*
+    echo "removed ${LSWS_HOME}/LICENSE*"
+    /bin/rm -f "${LSWS_HOME}/VERSION"
+    echo "removed ${LSWS_HOME}/VERSION"
+    
+    if [ "${DELETE_ALL}" -ne 0 ]; then
+        /bin/rm -rf "${LSWS_HOME}"
+        echo "removed ${LSWS_HOME}"
+    else
+        echo "${LSWS_HOME} is not empty, kept there"
+    fi
+
+    /bin/rm -f "${LSWS_HOME_DEF}"
+    
+    # remove EAHook if there, has to be run after LSWS_HOME_DEF removed
+    EasyApacheHookRefresh
+
+    echo "LiteSpeed Web Server has been successfully uninstalled."
+
+    cd "${CUR_DIR}"
+}

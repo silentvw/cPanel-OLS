@@ -1,0 +1,32 @@
+#!/bin/sh
+
+# /********************************************
+# LiteSpeed Web Cache Management Plugin for cPanel
+#
+# @author LiteSpeed Technologies, Inc. (https://www.litespeedtech.com)
+# @copyright (c) 2020-2021
+# @since 2.1
+# *********************************************/
+
+THEME_JUPITER_PLUGIN_DIR='/usr/local/cpanel/base/frontend/jupiter/ls_web_cache_manager';
+THEME_PAPER_LANTERN_PLUGIN_DIR='/usr/local/cpanel/base/frontend/paper_lantern/ls_web_cache_manager'
+
+if [ -e "${THEME_JUPITER_PLUGIN_DIR}" ] ; then
+    PLUGIN_DIR="${THEME_JUPITER_PLUGIN_DIR}"
+elif [ -e "${THEME_PAPER_LANTERN_PLUGIN_DIR}" ] ; then
+    PLUGIN_DIR="${THEME_PAPER_LANTERN_PLUGIN_DIR}"
+else
+    #cPanel user-end plugin is not installed, manually remove this cron job.
+    /bin/rm -f '/etc/cron.daily/ls-renew-ec-cert'
+    exit 1
+fi
+
+EC_SUPPORT_SETTING=$(grep -oP '(?<=GENERATE_EC_CERTS = )(\d)' '/usr/local/cpanel/3rdparty/ls_webcache_mgr/lswcm.conf')
+
+if [ "${EC_SUPPORT_SETTING}" = "0" ] ; then
+    # EC certificate support is off, run removal script.
+    /bin/sh "${PLUGIN_DIR}/scripts/cert_support_remove.sh" >/dev/null 2>&1
+    exit 1
+else
+    "${PLUGIN_DIR}/scripts/cert_action_entry" renewcert --all >/dev/null 2>&1
+fi

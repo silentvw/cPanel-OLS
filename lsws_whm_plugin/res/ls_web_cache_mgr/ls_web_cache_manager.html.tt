@@ -1,0 +1,22 @@
+[% WRAPPER '_assets/master.html.tt'
+    app_key = 'ls_web_cache_manager'
+    page_title = "LiteSpeed Web Cache Manager"
+    page_stylesheets = [             # CSS files.
+        'ls_web_cache_manager/static/litespeed-custom.min.css?v=1.1',
+        'ls_web_cache_manager/static/fonts/fontawesome-webfont.woff2'
+    ]
+    page_scripts = [                 # Scripts.
+        'ls_web_cache_manager/static/js/jquery-3.2.1.min.js',
+        'ls_web_cache_manager/static/js/litespeed-custom.min.js?v=1.3'
+    ]
+    include_legacy_stylesheets = 0   # Exclude legacy yui stylesheets.
+    include_legacy_scripts = 0       # Exclude yui utilities and x3 optimized scripts.
+    include_cjt = 0                  # Exclude legacy cjt scripts.
+-%]
+
+[% SET CPANEL.CPVAR.dprefix = "./" %]
+
+<div id="lswsContent"><img src="ls_web_cache_manager/static/icons/ajax-loader.gif" /></div>
+
+[% END # WRAPPER END %]
+
