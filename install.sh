@@ -6,6 +6,10 @@ PWDHOME=$(pwd)
 
 systemctl stop lshttpd
 rm -rf /usr/local/lsws
+systemctl stop lswsparse
+systemctl disable lswsparse
+clear
+
 echo " "
 echo " "
 echo " WELCOME TO THE ADACLARE LITESPEED FOR CPANEL"
