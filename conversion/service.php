@@ -26,7 +26,9 @@ $get_domains = shell_exec("whmapi1 --output=json get_domain_info");
 $get_domains = json_decode($get_domains,1);
 $get_domains = $get_domains["data"]["domains"];
 shell_exec("rm -rf /usr/local/lsws/conf/vhosts && mkdir /usr/local/lsws/conf/vhosts");
-$premade = file_get_contents("http_config.conf");
+$premade_pre = file_get_contents("/usr/local/lsws/conf/httpd_config.conf");
+$premade = "## DO NOT MODIFY BELOW";
+$premade_pre = explode("## DO NOT MODIFY BELOW", $premade_pre);
 $ssl_listeners = array();
 $listeners = array();
 shell_exec("rm -rf /usr/local/lsws/conf/sslcerts && mkdir /usr/local/lsws/conf/sslcerts");
@@ -100,7 +102,7 @@ $premade = $premade . "\n" . $px;
 }
 
 
-file_put_contents("/usr/local/lsws/conf/httpd_config.conf",$premade);
+file_put_contents("/usr/local/lsws/conf/httpd_config.conf",$premade_pre[0] . "\n" . $premade);
 echo "\n PROCESS COMPLETE \n";
 
 echo "\n RELOADING LSHTTPD \n";

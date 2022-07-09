@@ -1,5 +1,9 @@
 #!/bin/bash
+
+OSLSWSVER=1.7.16
+
 PWDHOME=$(pwd)
+
 systemctl stop lshttpd
 rm -rf /usr/local/lsws
 echo " "
@@ -8,8 +12,10 @@ echo " WELCOME TO THE ADACLARE LITESPEED FOR CPANEL"
 echo " "
 echo " "
 sleep 3s
-echo " EXTRACTING OPEN LITESPEED TAR FILE "
+echo "DOWNLOADING & EXTRACTING OPEN LITESPEED $OSLSWSVER TAR FILE "
+curl https://openlitespeed.org/packages/openlitespeed-$OSLSWSVER.tgz -o openlitespeed.tar.xz
 tar xvf openlitespeed.tar.xz
+rm -rf openlitespeed.tar.xz
 cd openlitespeed
 echo " INSTALLING OPEN LITESPEED "
 ./install.sh
@@ -34,7 +40,9 @@ systemctl status lshttpd
 echo " SETTING UP CPANEL LITESPEED CONVERSION SCRIPT "
 rm -rf /var/run/chkservd/apache*
 cp -rf conversion /usr/local/lsws/configparse
-cp lswsparse.service /etc/systemd/system/lswsparse.service
+cp -rf lswsparse.service /etc/systemd/system/lswsparse.service
+rm -rf /usr/local/lsws/conf/httpd_config.conf
+cp -rf httpd_config.conf /usr/local/lsws/conf/
 systemctl start lswsparse
 systemctl enable lswsparse
 systemctl status lswsparse
