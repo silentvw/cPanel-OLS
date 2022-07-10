@@ -1,5 +1,7 @@
 # OpenLiteSpeed for cPanel
 
+![](https://raw.githubusercontent.com/thomaswilbur/cPanel-OpenLitespeed/main/lsws_whm_plugin/static/icons/Logo_centered.svg)
+
 ### What is this?
 
 This replaces the Apache web server with Openlitespeed. I have created a custom wrapper script which reads the cPanel domains, php info, and ssl certificates and generates a config file for openlitespeed.
