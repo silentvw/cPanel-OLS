@@ -17,5 +17,8 @@ systemctl daemon-reload
 systemctl start lswsparse
 echo "Waiting for LSWSparse to generate our config"
 sleep 3s
-echo "Starting Litespeed..."
-systemctl start lshttpd
+echo " "
+echo " "
+echo "It may take some time for lshttpd to come online"
+echo " "
+echo " "
