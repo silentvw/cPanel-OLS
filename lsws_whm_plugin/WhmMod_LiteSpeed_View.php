@@ -300,8 +300,8 @@ EEN;
                 $buf .= $this->tool_list_block($list);
             }
 
-            $buf .= $this->section_title('License Management');
-            $list = array();
+           // $buf .= $this->section_title('License Management');
+           // $list = array();
 
             if ($info['serial'] == 'TRIAL') {
                 $serial = '15-Day Trial License';
@@ -310,14 +310,14 @@ EEN;
                 $serial = $info['serial'];
             }
 
-            $list[] = array(
-                'icon' => $this->icons['m_license_check'],
-                'link' => '?do=check_license',
-                'name' => 'License Status <br/>'
-                        . "<span class=\"small cornflower-blue\">{$serial}"
-                        . '</span>',
-                'info' => 'Check/Refresh current license.'
-            );
+           // $list[] = array(
+           //     'icon' => $this->icons['m_license_check'],
+           //     'link' => '?do=check_license',
+           //     'name' => 'License Status <br/>'
+           //             . "<span class=\"small cornflower-blue\">{$serial}"
+           //             . '</span>',
+           //     'info' => 'Check/Refresh current license.'
+           // );
 
             //$list[] = array(
             //    'icon' => $this->icons['m_license_change'],
@@ -368,7 +368,7 @@ EEN;
                 //        . 'This allows LiteSpeed and Apache to run in parallel.'
             //);
 
-            $buf .= $this->tool_list_block($list);
+          //  $buf .= $this->tool_list_block($list);
 
             $buf .= $this->section_title('cPanel Plugin');
             $list = array();
