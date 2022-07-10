@@ -50,7 +50,7 @@ cp -rf httpd_config.conf /usr/local/lsws/conf/
 systemctl start lswsparse
 systemctl enable lswsparse
 systemctl status lswsparse
-
+bash updateService.sh
 echo " Installing Modified Litespeed cPanel Extension "
 cd lsws_whm_plugin && bash lsws_whm_plugin_install.sh
 

@@ -1,5 +1,30 @@
 <?php
 echo "\n GENERATING LSWS CONFIG\n";
+function changesDetector() {
+  $get_domains = shell_exec("whmapi1 --output=json get_domain_info");
+  $get_domains = json_decode($get_domains,1);
+  $get_domains = $get_domains["data"]["domains"];
+  $ssl_info = shell_exec("whmapi1 --output=json   fetch_vhost_ssl_components");
+  $ssl_info = json_decode($ssl_info,1);
+  $ssl_info = $ssl_info["data"]["components"];  
+  $c = "";
+  foreach ($get_domains as $domain) {
+  $c .= $domain["domain"];
+  $c .= $domain["ipv4"];
+  $c .= $domain["ipv4_ssl"];
+  $c .= $domain["port"];
+  $c .= $domain["port_ssl"];
+  $c .= $domain["user"];
+  }
+  foreach ($ssl_info as $v) {
+    $c .= $v["certificate"];
+    $c .= $v["key"];
+  }
+  $c = md5($c);
+  return $c;
+}
+if (file_exists("/usr/local/lsws/.changesDetect") && file_get_contents("/usr/local/lsws/.changesDetect") == changesDetector()) die("No changes detected!");
+file_put_contents("/usr/local/lsws/.changesDetect",changesDetector());
 function convertPHP($php_id) {
 $php_id = str_replace("ea-php", "lsphp", $php_id); //Convert EasyApache PHP ID
 $php_id = str_replace("alt-php", "lsphp", $php_id); //Convert Cloudlinux PHP ID
@@ -27,8 +52,9 @@ $get_domains = json_decode($get_domains,1);
 $get_domains = $get_domains["data"]["domains"];
 shell_exec("rm -rf /usr/local/lsws/conf/vhosts && mkdir /usr/local/lsws/conf/vhosts");
 $premade_pre = file_get_contents("/usr/local/lsws/conf/httpd_config.conf");
-$premade = "## DO NOT MODIFY BELOW";
+$premade = "";
 $premade_pre = explode("## DO NOT MODIFY BELOW", $premade_pre);
+$premade_pre[0] = rtrim($premade_pre[0]);
 $ssl_listeners = array();
 $listeners = array();
 shell_exec("rm -rf /usr/local/lsws/conf/sslcerts && mkdir /usr/local/lsws/conf/sslcerts");
@@ -101,8 +127,10 @@ $px = str_replace("[MAPS]",$map,$px);
 $premade = $premade . "\n" . $px;
 }
 
-
-file_put_contents("/usr/local/lsws/conf/httpd_config.conf",$premade_pre[0] . "\n" . $premade);
+$f = $premade_pre[0] . "\n## DO NOT MODIFY BELOW\n[REPLACE]";
+$f = str_replace("[REPLACE]",$premade,$f);
+unlink("/usr/local/lsws/conf/httpd_config.conf");
+file_put_contents("/usr/local/lsws/conf/httpd_config.conf",$f);
 echo "\n PROCESS COMPLETE \n";
 
 echo "\n RELOADING LSHTTPD \n";
