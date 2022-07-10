@@ -19,5 +19,6 @@ This replaces the Apache web server with Openlitespeed. I have created a custom 
 ### How do I install?
 
 1. Clone this repo
-2. Create a server snapshot/backup ( RECOMMENDED )
-3. Run install.sh 
+2. Ensure Enterprise LSWS is not installed and cPanel Plugin for Enterprise LSWS is removed.
+3. Create a server snapshot/backup ( RECOMMENDED )
+4. Run install.sh 
