@@ -15,6 +15,7 @@ function changesDetector() {
   $c .= $domain["port"];
   $c .= $domain["port_ssl"];
   $c .= $domain["user"];
+  $c .= $domain["php_version"];
   }
   foreach ($ssl_info as $v) {
     $c .= $v["certificate"];
