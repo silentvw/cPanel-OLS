@@ -134,5 +134,5 @@ unlink("/usr/local/lsws/conf/httpd_config.conf");
 file_put_contents("/usr/local/lsws/conf/httpd_config.conf",$f);
 echo "\n PROCESS COMPLETE \n";
 
-echo "\n RELOADING LSHTTPD \n";
-shell_exec("systemctl reload lshttpd");
+echo "\n RESTARTING LSHTTPD \n";
+shell_exec("systemctl restart lshttpd");
