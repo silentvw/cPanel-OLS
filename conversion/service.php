@@ -1,4 +1,15 @@
 <?php
+
+echo "\n CHECKING LSHTTPD SERVICE\n";
+$service = shell_exec("systemctl status lshttpd -l");
+if (strpos($service, 'active (running)') !== false) {
+ echo "\nSERVICE IS OKAY!!\n"; 
+} else {
+ echo "\n Attempting to Fix LSHTTPD Service \n ";
+  shell_exec("systemctl stop lshttpd");
+  shell_exec("systemctl start lshttpd");
+}
+
 echo "\n GENERATING LSWS CONFIG\n";
 function changesDetector() {
   $get_domains = shell_exec("whmapi1 --output=json get_domain_info");
