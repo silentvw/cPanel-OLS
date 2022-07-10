@@ -22,3 +22,7 @@ This replaces the Apache web server with Openlitespeed. I have created a custom 
 2. Ensure Enterprise LSWS is not installed and cPanel Plugin for Enterprise LSWS is removed.
 3. Create a server snapshot/backup ( RECOMMENDED )
 4. Run install.sh 
+
+### Custom OpenLitespeed Version
+
+As of creating this script, the current version of OpenLiteSpeed was 1.7.16. This can be updated by modifying the variable OSLSWSVER in the install.sh file. Once modified you can run the install.sh file to upgrade OpenLiteSpeed.
