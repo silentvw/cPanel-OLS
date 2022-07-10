@@ -1,4 +1,4 @@
-# Openlitespeed for cPanel
+# OpenLiteSpeed for cPanel
 
 ### What is this?
 
