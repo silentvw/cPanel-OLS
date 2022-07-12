@@ -27,17 +27,6 @@ echo " INSTALLING OPEN LITESPEED "
 cd $PWDHOME
 rm -rf openlitespeed
 clear
-echo " INSTALLING COMPATIBLE LSWS PHP VERSIONS "
-echo "LSPHP 7.4"
-yum -y -q remove lsphp74*
-yum -y -q install lsphp74*
-echo "LSPHP 7.3"
-yum -y -q remove lsphp73*
-yum -y -q install lsphp73*
-echo "LSPHP 7.2"
-yum -y -q remove lsphp72*
-yum -y -q install lsphp72*
-clear
 echo " STARTING LSWS WEB SERVER "
 systemctl disable httpd
 systemctl stop httpd
