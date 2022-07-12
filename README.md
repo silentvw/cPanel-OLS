@@ -17,6 +17,7 @@ This replaces the Apache web server with Openlitespeed. I have created a custom 
 - Vhost Templates
 - Listener Templates
 - SSL Support
+- Script detects PHP Version and automatically finds cPanel PHP executable or Cloudlinux alt-php executable
 
 ### How do I install?
 
