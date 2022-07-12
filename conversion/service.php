@@ -38,16 +38,14 @@ function changesDetector() {
 if (file_exists("/usr/local/lsws/.changesDetect") && file_get_contents("/usr/local/lsws/.changesDetect") == changesDetector()) die("No changes detected!");
 file_put_contents("/usr/local/lsws/.changesDetect",changesDetector());
 function convertPHP($php_id) {
-$php_id = str_replace("ea-php", "lsphp", $php_id); //Convert EasyApache PHP ID
-$php_id = str_replace("alt-php", "lsphp", $php_id); //Convert Cloudlinux PHP ID
-$php_id = str_replace(".", "", $php_id); //replace dots
-if (strpos($php_id, 'lsphp5') !== false) {
-    return "lsphp72";
+if (strpos($php_id, 'ea') !== false) {
+    return "/opt/cpanel/" . $php_id . "/root/bin/php";
 }
-if ($php_id == "lsphp74") return $php_id; // 7.4
-if ($php_id == "lsphp73") return $php_id; // 7.3
-if ($php_id == "lsphp72") return $php_id; // 7.2
-return "lsphp74"; // Return Default PHP Version
+if (strpos($php_id, 'alt') !== false) {
+ $php_id = str_replace("alt-php", "php", $php_id); //Convert Cloudlinux PHP ID
+    return "/opt/alt/" . $php_id . "/usr/bin/php";
+}
+return "/usr/local/cpanel/3rdparty/bin/php"; // Return Default PHP Version
 }
 function randomPassword() {
     $alphabet = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890';
