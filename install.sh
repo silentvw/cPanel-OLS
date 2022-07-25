@@ -1,6 +1,6 @@
 #!/bin/bash
 
-OSLSWSVER=1.7.16
+OSLSWSVER=$(curl -s https://openlitespeed.org/packages/release)
 
 PWDHOME=$(pwd)
 
