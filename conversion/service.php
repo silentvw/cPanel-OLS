@@ -39,13 +39,12 @@ if (file_exists("/usr/local/lsws/.changesDetect") && file_get_contents("/usr/loc
 file_put_contents("/usr/local/lsws/.changesDetect",changesDetector());
 function convertPHP($php_id) {
 if (strpos($php_id, 'ea') !== false) {
-    return "/opt/cpanel/" . $php_id . "/root/bin/php";
+return "/usr/local/cpanel/3rdparty/bin/php"; // Return Default PHP Version
 }
 if (strpos($php_id, 'alt') !== false) {
- $php_id = str_replace("alt-php", "php", $php_id); //Convert Cloudlinux PHP ID
-    return "/opt/alt/" . $php_id . "/usr/bin/php";
+return '/usr/local/bin/lsphp';
 }
-return "/usr/local/cpanel/3rdparty/bin/php"; // Return Default PHP Version
+
 }
 function randomPassword() {
     $alphabet = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890';
